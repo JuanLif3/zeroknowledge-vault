@@ -1,19 +1,17 @@
 package com.cybersec.zeroknowledge_vault.vault.dto.request;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-public record VaultItemRequest(
-        @NotBlank(message = "El título cifrado no puede estar vacío")
-        String encryptedTitle,
-
-        @NotBlank(message = "El usuario cifrado no puede estar vacío")
-        String encryptedUsername,
-
-        @NotBlank(message = "La contraseña cifrada no puede estar vacía")
-        String encryptedPassword,
-
-        @NotNull(message = "Debe especificar si es un honeytoken")
-        Boolean isHoneytoken
-) {
+@Data
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+public class VaultItemRequest {
+        private String encryptedTitle;
+        private String itemType;
+        private String encryptedPayload;
+        private boolean isHoneytoken;
 }

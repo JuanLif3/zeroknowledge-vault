@@ -25,12 +25,13 @@ public class VaultService {
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
         // * Creamos el ítem (recordemos que todo el texto ya viene cifrado desde React)
-        VaultItem item = new VaultItem();
-        item.setUser(user);
-        item.setEncryptedTitle(request.encryptedTitle());
-        item.setEncryptedUsername(request.encryptedUsername());
-        item.setEncryptedPassword(request.encryptedPassword());
-        item.setHoneytoken(request.isHoneytoken());
+        VaultItem item = VaultItem.builder()
+                .user(user)
+                .encryptedTitle(request.getEncryptedTitle())
+                .itemType(request.getItemType()) // Nuevo campo
+                .encryptedPayload(request.getEncryptedPayload()) // Nuevo campo
+                .isHoneytoken(request.isHoneytoken())
+                .build();
 
         // * Guardamos en la base de datos
         VaultItem savedItem = vaultItemRepository.save(item);
@@ -52,12 +53,12 @@ public class VaultService {
 
     // * Método auxiliar para no repetir código
     private VaultItemResponse mapToResponse(VaultItem item) {
-        return new VaultItemResponse(
-                item.getId(),
-                item.getEncryptedTitle(),
-                item.getEncryptedUsername(),
-                item.getEncryptedPassword(),
-                item.isHoneytoken()
-        );
+        return VaultItemResponse.builder()
+                .id(item.getId())
+                .encryptedTitle(item.getEncryptedTitle())
+                .itemType(item.getItemType())
+                .encryptedPayload(item.getEncryptedPayload()) 
+                .isHoneytoken(item.isHoneytoken())
+                .build();
     }
 }

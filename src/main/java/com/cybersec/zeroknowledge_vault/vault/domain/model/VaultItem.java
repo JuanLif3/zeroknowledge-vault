@@ -2,13 +2,19 @@ package com.cybersec.zeroknowledge_vault.vault.domain.model;
 
 import com.cybersec.zeroknowledge_vault.security.domain.model.User;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @Entity
 @Table(name = "vault_item")
-@Data
 public class VaultItem {
 
     @Id
@@ -32,6 +38,14 @@ public class VaultItem {
 
     @Column(nullable = false)
     private boolean isHoneytoken = false;
+
+    // Para saber qué icono mostrar en React
+    @Column(nullable = false)
+    private String itemType;
+
+    // Usamos TEXT porque el payload empaquetado puede ser muy largo
+    @Column(nullable = false, columnDefinition = "TEXT")
+    private String encryptedPayload;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
