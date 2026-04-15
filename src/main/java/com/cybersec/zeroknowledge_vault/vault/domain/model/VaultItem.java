@@ -21,29 +21,19 @@ public class VaultItem {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // A quién le pertenece esta credencial
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    // EJEMPLO DE DATOS QUE LLEGARÁN AQUÍ: "U2FsdGVkX19zX...a8f="
     @Column(nullable = false, columnDefinition = "TEXT")
-    private String encryptedTitle; // Ej: "Netflix" (pero cifrado)
-
-    @Column(nullable = false, columnDefinition = "TEXT")
-    private String encryptedUsername; // Ej: "juan@mail.com" (pero cifrado)
-
-    @Column(nullable = false, columnDefinition = "TEXT")
-    private String encryptedPassword; // Ej: "123456" (pero cifrado)
+    private String encryptedTitle;
 
     @Column(nullable = false)
     private boolean isHoneytoken = false;
 
-    // Para saber qué icono mostrar en React
     @Column(nullable = false)
     private String itemType;
 
-    // Usamos TEXT porque el payload empaquetado puede ser muy largo
     @Column(nullable = false, columnDefinition = "TEXT")
     private String encryptedPayload;
 
