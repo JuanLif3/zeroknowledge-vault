@@ -6,4 +6,5 @@ import lombok.Data;
 public class SharedSecretRequest {
     private String encryptedMessage;
     private int minutesToLive; // Cuánto tiempo durará el link si nadie lo abre
+    private boolean holdToReveal;
 }

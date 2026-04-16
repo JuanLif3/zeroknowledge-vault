@@ -28,17 +28,13 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                //  APAGAR CSRF (Obligatorio al usar JWT en APIs REST)
-                .csrf(csrf -> csrf.disable())
-
-                // ACTIVAR CORS (Para que React pueda hablar con Java)
+                .csrf(csrf -> csrf.disable()) // APAGAR CSRF es vital para que pasen los POST con Cookies
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-
-                // REGLAS DE AUTORIZACIÓN
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/v1/auth/**").permitAll() // Login y Registro públicos
-                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/secrets/**").permitAll() // ¡El receptor no tiene cuenta, DEBE ser público para leer!
-                        .anyRequest().authenticated() // Todo lo demás (Crear secretos, Bóveda) requiere estar logueado
+                        .requestMatchers("/api/v1/auth/**").permitAll()
+                        .requestMatchers("/error").permitAll() // <-- ¡ESTO EVITA EL 403 FANTASMA!
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/shared-secrets/**").permitAll() // Permitir a cualquiera LEER el secreto
+                        .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)

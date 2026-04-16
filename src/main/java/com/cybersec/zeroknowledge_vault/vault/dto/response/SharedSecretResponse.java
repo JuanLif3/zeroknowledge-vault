@@ -8,4 +8,5 @@ import lombok.Data;
 public class SharedSecretResponse {
     private String id;
     private String encryptedMessage;
+    private boolean holdToReveal;
 }

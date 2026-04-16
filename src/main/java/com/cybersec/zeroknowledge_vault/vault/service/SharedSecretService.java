@@ -21,6 +21,7 @@ public class SharedSecretService {
         SharedSecret secret = SharedSecret.builder()
                 .encryptedMessage(request.getEncryptedMessage())
                 .expiresAt(LocalDateTime.now().plusMinutes(request.getMinutesToLive()))
+                .holdToReveal(request.isHoldToReveal()) // <-- NUEVO: Guardar el modo Snapchat en la BD
                 .build();
 
         return repository.save(secret).getId();
@@ -42,9 +43,10 @@ public class SharedSecretService {
         SharedSecretResponse response = SharedSecretResponse.builder()
                 .id(secret.getId())
                 .encryptedMessage(secret.getEncryptedMessage())
+                .holdToReveal(secret.isHoldToReveal()) // <-- NUEVO: Enviar el modo Snapchat al Frontend
                 .build();
 
-        // !  Lo borramos de la DB justo después de leerlo
+        // ! Lo borramos de la DB justo después de leerlo
         repository.delete(secret);
 
         return response;
