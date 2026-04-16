@@ -2,9 +2,11 @@ package com.cybersec.zeroknowledge_vault.vault.service;
 
 import com.cybersec.zeroknowledge_vault.security.domain.model.User;
 import com.cybersec.zeroknowledge_vault.security.repository.UserRepository;
+import com.cybersec.zeroknowledge_vault.vault.domain.model.IntrusionLog;
 import com.cybersec.zeroknowledge_vault.vault.domain.model.VaultItem;
 import com.cybersec.zeroknowledge_vault.vault.dto.request.VaultItemRequest;
 import com.cybersec.zeroknowledge_vault.vault.dto.response.VaultItemResponse;
+import com.cybersec.zeroknowledge_vault.vault.repository.IntrusionLogRepository;
 import com.cybersec.zeroknowledge_vault.vault.repository.VaultItemRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,6 +20,7 @@ public class VaultService {
 
     private final VaultItemRepository vaultItemRepository;
     private final UserRepository userRepository;
+    private final IntrusionLogRepository intrusionLogRepository;
 
     public VaultItemResponse saveItem (VaultItemRequest request, String userEmail) {
         // * Buscamos al dueño de la boveda
@@ -60,5 +63,27 @@ public class VaultService {
                 .encryptedPayload(item.getEncryptedPayload()) 
                 .isHoneytoken(item.isHoneytoken())
                 .build();
+    }
+
+    // * Registrar un ataque
+    public void registerIntrusion(Long vaultItemId, String userEmail, String ipAddress) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        IntrusionLog log = IntrusionLog.builder()
+                .vaultItemId(vaultItemId)
+                .userId(user.getId())
+                .ipAddress(ipAddress)
+                .build();
+
+        intrusionLogRepository.save(log);
+    }
+
+    // * Obtener mis alertas
+    public List<IntrusionLog> getUserIntrusions(String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        return intrusionLogRepository.findByUserIdOrderByAttemptedAtDesc(user.getId());
     }
 }

@@ -1,8 +1,10 @@
 package com.cybersec.zeroknowledge_vault.vault.controller;
 
+import com.cybersec.zeroknowledge_vault.vault.domain.model.IntrusionLog;
 import com.cybersec.zeroknowledge_vault.vault.dto.request.VaultItemRequest;
 import com.cybersec.zeroknowledge_vault.vault.dto.response.VaultItemResponse;
 import com.cybersec.zeroknowledge_vault.vault.service.VaultService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -35,5 +37,24 @@ public class VaultController {
     public ResponseEntity<List<VaultItemResponse>> getMyVault(Authentication authentication) {
         String userEmail = authentication.getName();
         return ResponseEntity.ok(vaultService.getUserVault(userEmail));
+    }
+
+    // * Disparar la trampa
+    @PostMapping("/honeytokens/{id}/trap")
+    public ResponseEntity<Void> triggerHoneytoken(
+            @PathVariable Long id,
+            HttpServletRequest request,
+            Authentication authentication) {
+
+        // Extraemos la IP "atacante"
+        String ipAddress = request.getRemoteAddr();
+        vaultService.registerIntrusion(id, authentication.getName(), ipAddress);
+        return ResponseEntity.ok().build();
+    }
+
+    // * Leer las alertas del radar
+    @GetMapping("/intrusions")
+    public ResponseEntity<List<IntrusionLog>> getMyIntrusions(Authentication authentication) {
+        return ResponseEntity.ok(vaultService.getUserIntrusions(authentication.getName()));
     }
 }
