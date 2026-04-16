@@ -34,4 +34,6 @@ public class SharedSecret {
     protected void onCreate() {
         createdAt = LocalDateTime.now();
     }
+
+    private boolean holdToReveal;
 }

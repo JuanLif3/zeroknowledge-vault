@@ -28,15 +28,21 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                // * Activamos nuestra configuración personalizada de CORS
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                //  APAGAR CSRF (Obligatorio al usar JWT en APIs REST)
                 .csrf(csrf -> csrf.disable())
+
+                // ACTIVAR CORS (Para que React pueda hablar con Java)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+
+                // REGLAS DE AUTORIZACIÓN
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/v1/auth/**").permitAll()
-                        .requestMatchers("/api/v1/public/secrets/**").permitAll()
-                        .anyRequest().authenticated()
+                        .requestMatchers("/api/v1/auth/**").permitAll() // Login y Registro públicos
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/secrets/**").permitAll() // ¡El receptor no tiene cuenta, DEBE ser público para leer!
+                        .anyRequest().authenticated() // Todo lo demás (Crear secretos, Bóveda) requiere estar logueado
                 )
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
                 .authenticationProvider(authenticationProvider)
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
