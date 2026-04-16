@@ -57,4 +57,26 @@ public class VaultController {
     public ResponseEntity<List<IntrusionLog>> getMyIntrusions(Authentication authentication) {
         return ResponseEntity.ok(vaultService.getUserIntrusions(authentication.getName()));
     }
+
+    // * PUT: Editar una credencial existente
+    @PutMapping("/{id}")
+    public ResponseEntity<VaultItemResponse> updateVaultItem(
+            @PathVariable Long id,
+            @Valid @RequestBody VaultItemRequest request,
+            Authentication authentication
+    ) {
+        String userEmail = authentication.getName();
+        return ResponseEntity.ok(vaultService.updateItem(id, request, userEmail));
+    }
+
+    // * DELETE: Eliminar una credencial
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteVaultItem(
+            @PathVariable Long id,
+            Authentication authentication
+    ) {
+        String userEmail = authentication.getName();
+        vaultService.deleteItem(id, userEmail);
+        return ResponseEntity.noContent().build();
+    }
 }

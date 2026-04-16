@@ -86,4 +86,41 @@ public class VaultService {
 
         return intrusionLogRepository.findByUserIdOrderByAttemptedAtDesc(user.getId());
     }
+
+    // * Actualizar un registro existente (EDITAR)
+    public VaultItemResponse updateItem(Long id, VaultItemRequest request, String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        VaultItem item = vaultItemRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Ítem no encontrado"));
+
+        // Verificamos que el ítem le pertenezca al usuario que lo quiere editar
+        if (!item.getUser().getId().equals(user.getId())) {
+            throw new RuntimeException("Acceso denegado: Este registro no te pertenece");
+        }
+
+        item.setEncryptedTitle(request.getEncryptedTitle());
+        item.setItemType(request.getItemType());
+        item.setEncryptedPayload(request.getEncryptedPayload());
+        item.setHoneytoken(request.isHoneytoken());
+
+        VaultItem updatedItem = vaultItemRepository.save(item);
+        return mapToResponse(updatedItem);
+    }
+
+    // * Eliminar un registro (BORRAR)
+    public void deleteItem(Long id, String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        VaultItem item = vaultItemRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Ítem no encontrado"));
+
+        if (!item.getUser().getId().equals(user.getId())) {
+            throw new RuntimeException("Acceso denegado: Este registro no te pertenece");
+        }
+
+        vaultItemRepository.delete(item);
+    }
 }
