@@ -10,6 +10,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -41,21 +42,49 @@ public class AuthService {
     }
 
     public AuthResponse login(LoginRequest request) {
-        // * El AuthenticationManager de Spring comprueba internamente si la clave BCrypt coincide
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        request.email(),
-                        request.password()
-                )
-        );
+        // 1. Buscamos al usuario (Si no existe, tiramos error genérico por seguridad)
+        User user = repository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new RuntimeException("Credenciales incorrectas"));
 
-        // * Si llegamos a esta línea, las credenciales son correctas. Buscamos al usuario.
-        User user = userRepository.findByEmail(request.email())
-                .orElseThrow(); // ! Nunca debería fallar porque ya autenticamos arriba
+        // 2. VERIFICACIÓN DE BLOQUEO (Anti-Brute Force)
+        if (!user.isAccountNonLocked()) {
+            throw new RuntimeException("Cuenta bloqueada por múltiples intentos fallidos. Por seguridad, intente nuevamente en 15 minutos.");
+        }
 
-        // * Le damos un nuevo Token fresco
-        String jwtToken = jwtService.generateToken(user);
+        try {
+            // 3. Intentamos autenticar con Spring Security
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            request.getEmail(),
+                            request.getPassword()
+                    )
+            );
 
-        return new AuthResponse(jwtToken, "Login exitoso");
+            // 4. SI LLEGA AQUÍ, EL LOGIN FUE EXITOSO: Reseteamos los fallos a 0
+            user.setFailedLoginAttempts(0);
+            user.setAccountLockedUntil(null);
+            repository.save(user);
+
+        } catch (Exception e) {
+            // 5. SI LLEGA AQUÍ, SE EQUIVOCÓ DE CONTRASEÑA: Sumamos un fallo
+            int attempts = user.getFailedLoginAttempts() + 1;
+            user.setFailedLoginAttempts(attempts);
+
+            if (attempts >= 5) {
+                // ¡PUM! Bloqueado por 15 minutos
+                user.setAccountLockedUntil(LocalDateTime.now().plusMinutes(15));
+                repository.save(user);
+                throw new RuntimeException("Has superado el límite de intentos (5). Cuenta bloqueada temporalmente por 15 minutos.");
+            }
+
+            repository.save(user);
+            throw new RuntimeException("Credenciales incorrectas. Te quedan " + (5 - attempts) + " intentos antes del bloqueo de seguridad.");
+        }
+
+        // Generamos el token solo si todo fue perfecto
+        var jwtToken = jwtService.generateToken(user);
+        return AuthResponse.builder()
+                .token(jwtToken)
+                .build();
     }
 }

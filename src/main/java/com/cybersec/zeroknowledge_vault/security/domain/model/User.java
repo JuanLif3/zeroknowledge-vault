@@ -33,6 +33,13 @@ public class User implements UserDetails {
         createdAt = LocalDateTime.now();
     }
 
+    // * --- CAMPOS DE SEGURIDAD ANTI-HACKER ---
+    @Column(name = "failed_login_attempts")
+    private int failedLoginAttempts = 0;
+
+    @Column(name = "account_locked_until")
+    private LocalDateTime accountLockedUntil;
+
     // * --- METODOS OBLIATORIOS DE SPRING SECURITY ---
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
@@ -56,7 +63,11 @@ public class User implements UserDetails {
 
     @Override
     public boolean isAccountNonLocked() {
-        return true;
+        if (accountLockedUntil == null) {
+            return true;
+        }
+        // Si la fecha actual ya pasó la fecha de bloqueo, se desbloquea
+        return LocalDateTime.now().isAfter(accountLockedUntil);
     }
 
     @Override
@@ -68,5 +79,7 @@ public class User implements UserDetails {
     public boolean isEnabled() {
         return true;
     }
+
+
 
 }

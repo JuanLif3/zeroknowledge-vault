@@ -1,14 +1,15 @@
 package com.cybersec.zeroknowledge_vault.security.dto.request;
 
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-public record LoginRequest(
-        @NotBlank(message = "El email es obligatorio")
-        @Email
-        String email,
-
-        @NotBlank(message = "La contraseña es obligatoria")
-        String password
-) {
+@Data
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+public class LoginRequest {
+        private String email;
+        private String password;
 }
