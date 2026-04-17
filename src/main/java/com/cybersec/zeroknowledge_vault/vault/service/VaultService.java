@@ -54,7 +54,7 @@ public class VaultService {
     }
 
     // * ACTUALIZAR UN REGISTRO EXISTENTE (EDITAR)
-    public VaultItemResponse updateItem(Long id, VaultItemRequest request, String userEmail) {
+    public VaultItemResponse updateItem(UUID id, VaultItemRequest request, String userEmail) {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
@@ -85,7 +85,7 @@ public class VaultService {
     }
 
     // * ELIMINAR UN REGISTRO
-    public void deleteItem(Long id, String userEmail) {
+    public void deleteItem(UUID id, String userEmail) {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
@@ -100,7 +100,7 @@ public class VaultService {
     }
 
     // * REGISTRAR UN ATAQUE
-    public void registerIntrusion(Long vaultItemId, String userEmail, String ipAddress) {
+    public void registerIntrusion(UUID vaultItemId, String userEmail, String ipAddress) {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 

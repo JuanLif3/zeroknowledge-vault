@@ -31,7 +31,7 @@ public class AuthService {
         // * Creamos al usuario
         User user = new User();
         user.setEmail(request.getEmail()); // Usando getEmail
-        user.setLoginPasswordHash(passwordEncoder.encode(request.getPassword())); // Usando getPassword
+        user.setLoginPasswordHash(passwordEncoder.encode(request.getAuthHash())); // Usando getPassword
 
         // * Guardamos en la DB
         userRepository.save(user);
@@ -60,7 +60,7 @@ public class AuthService {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
                             request.getEmail(),
-                            request.getPassword()
+                            request.getAuthHash()
                     )
             );
 
@@ -85,7 +85,7 @@ public class AuthService {
             throw new RuntimeException("Credenciales incorrectas. Te quedan " + (5 - attempts) + " intentos antes del bloqueo de seguridad.");
         }
 
-        // Generamos el token solo si todo fue perfecto
+        // * Generamos el token solo si todo fue perfecto
         var jwtToken = jwtService.generateToken(user);
         return AuthResponse.builder()
                 .token(jwtToken)

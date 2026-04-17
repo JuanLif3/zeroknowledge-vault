@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Data
 @Builder
@@ -21,7 +22,7 @@ public class IntrusionLog {
     private Long id;
 
     @Column(nullable = false)
-    private Long vaultItemId; // El ID del señuelo que fue atacado
+    private UUID vaultItemId; // El ID del señuelo que fue atacado
 
     @Column(nullable = false)
     private Long userId; // El dueño de la bóveda (Yo)

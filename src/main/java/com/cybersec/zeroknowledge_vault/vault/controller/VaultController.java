@@ -4,7 +4,6 @@ import com.cybersec.zeroknowledge_vault.vault.domain.model.IntrusionLog;
 import com.cybersec.zeroknowledge_vault.vault.dto.request.VaultItemRequest;
 import com.cybersec.zeroknowledge_vault.vault.dto.response.VaultItemResponse;
 import com.cybersec.zeroknowledge_vault.vault.service.VaultService;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -12,6 +11,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/vault")
@@ -27,7 +27,6 @@ public class VaultController {
             @Valid @RequestBody VaultItemRequest request,
             Authentication authentication // * Spring Security nos da esto gracias a nuestro Filtro JWT
     ) {
-        // * Extraemos el email del usuario que hizo la petición
         String userEmail = authentication.getName();
         return ResponseEntity.ok(vaultService.saveItem(request, userEmail));
     }
@@ -39,19 +38,6 @@ public class VaultController {
         return ResponseEntity.ok(vaultService.getUserVault(userEmail));
     }
 
-    // * Disparar la trampa
-    @PostMapping("/honeytokens/{id}/trap")
-    public ResponseEntity<Void> triggerHoneytoken(
-            @PathVariable Long id,
-            HttpServletRequest request,
-            Authentication authentication) {
-
-        // Extraemos la IP "atacante"
-        String ipAddress = request.getRemoteAddr();
-        vaultService.registerIntrusion(id, authentication.getName(), ipAddress);
-        return ResponseEntity.ok().build();
-    }
-
     // * Leer las alertas del radar
     @GetMapping("/intrusions")
     public ResponseEntity<List<IntrusionLog>> getMyIntrusions(Authentication authentication) {
@@ -61,7 +47,7 @@ public class VaultController {
     // * PUT: Editar una credencial existente
     @PutMapping("/{id}")
     public ResponseEntity<VaultItemResponse> updateVaultItem(
-            @PathVariable Long id,
+            @PathVariable UUID id,
             @Valid @RequestBody VaultItemRequest request,
             Authentication authentication
     ) {
@@ -72,7 +58,7 @@ public class VaultController {
     // * DELETE: Eliminar una credencial
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteVaultItem(
-            @PathVariable Long id,
+            @PathVariable UUID id,
             Authentication authentication
     ) {
         String userEmail = authentication.getName();
