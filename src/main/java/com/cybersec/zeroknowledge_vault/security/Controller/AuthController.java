@@ -4,12 +4,14 @@ import com.cybersec.zeroknowledge_vault.security.dto.request.LoginRequest;
 import com.cybersec.zeroknowledge_vault.security.dto.request.RegisterRequest;
 import com.cybersec.zeroknowledge_vault.security.dto.response.AuthResponse;
 import com.cybersec.zeroknowledge_vault.security.service.AuthService;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.ResponseCookie;
+import org.springframework.http.HttpHeaders;
+import org.springframework.beans.factory.annotation.Value;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -17,6 +19,9 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+
+    @Value("${app.security.cookie.secure:false}")
+    private boolean isCookieSecure;
 
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(
@@ -40,13 +45,32 @@ public class AuthController {
         return ResponseEntity.ok(AuthResponse.builder().token("JWT protegido en Cookie HttpOnly").build());
     }
 
-    // * Método privado para generar la cookie blindada
+    // * Método privado CORREGIDO para generar la cookie blindada
     private void injectJwtCookie(HttpServletResponse response, String token) {
-        Cookie cookie = new Cookie("jwt", token);
-        cookie.setHttpOnly(true); // PROHÍBE que JavaScript (o hackers) lo lean
-        cookie.setSecure(false); // en 'true' cuando se suba a producción con HTTPS
-        cookie.setPath("/");
-        cookie.setMaxAge(24 * 60 * 60); // Expira en 1 día
-        response.addCookie(cookie);
+        ResponseCookie cookie = ResponseCookie.from("jwt", token) // Usamos la variable 'token' que llega por parámetro
+                .httpOnly(true)
+                .secure(isCookieSecure) // Usa la variable de entorno
+                .path("/")
+                .maxAge(24 * 60 * 60) // 1 día
+                .sameSite("Strict") // <-- EL ESCUDO ANTI-CSRF
+                .build();
+
+        // Inyectamos la cabecera directamente en el response
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout() {
+        ResponseCookie cookie = ResponseCookie.from("jwt", "")
+                .httpOnly(true)
+                .secure(isCookieSecure)
+                .path("/")
+                .maxAge(0) // <-- Autodestrucción instantánea
+                .sameSite("Strict")
+                .build();
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, cookie.toString())
+                .body("Sesión cerrada exitosamente");
     }
 }
