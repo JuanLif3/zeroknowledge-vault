@@ -14,8 +14,8 @@ import java.time.LocalDateTime;
 public class VaultItemResponse {
     private Long id;
     private String encryptedTitle;
-    private String itemType;
     private String encryptedPayload;
+    private String itemType;
     private boolean isHoneytoken;
     private String trapToken;
     private LocalDateTime createdAt;

@@ -23,74 +23,37 @@ public class VaultService {
     private final UserRepository userRepository;
     private final IntrusionLogRepository intrusionLogRepository;
 
-    public VaultItemResponse saveItem (VaultItemRequest request, String userEmail) {
-        // * Buscamos al dueño de la boveda
+    // * CREAR UN NUEVO REGISTRO
+    public VaultItemResponse saveItem(VaultItemRequest request, String userEmail) {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
-        // * Creamos el ítem (recordemos que todo el texto ya viene cifrado desde React)
         VaultItem item = VaultItem.builder()
                 .user(user)
                 .encryptedTitle(request.getEncryptedTitle())
-                .itemType(request.getItemType()) // Nuevo campo
-                .encryptedPayload(request.getEncryptedPayload()) // Nuevo campo
+                .itemType(request.getItemType())
+                .encryptedPayload(request.getEncryptedPayload())
                 .isHoneytoken(request.isHoneytoken())
+                // AHORA SÍ: Generamos el token de trampa al guardar
+                .trapToken(request.isHoneytoken() ? UUID.randomUUID().toString() : null)
                 .build();
 
-        // * Guardamos en la base de datos
         VaultItem savedItem = vaultItemRepository.save(item);
-
-        // * Devolvemos el DTO
         return mapToResponse(savedItem);
     }
 
-    public List<VaultItemResponse> getUserVault (String userEmail) {
+    // * OBTENER TODOS LOS REGISTROS
+    public List<VaultItemResponse> getUserVault(String userEmail) {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
-        // * Extraemos SOLO los datos de este usuario y los transformamos en DTOs
         return vaultItemRepository.findAllByUserId(user.getId())
                 .stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
 
-    // * Método auxiliar para no repetir código
-    private VaultItemResponse mapToResponse(VaultItem item) {
-        return VaultItemResponse.builder()
-                .id(item.getId())
-                .encryptedTitle(item.getEncryptedTitle())
-                .encryptedPayload(item.getEncryptedPayload())
-                .itemType(item.getItemType())
-                .isHoneytoken(item.isHoneytoken())
-                .trapToken(item.getTrapToken())
-                .createdAt(item.getCreatedAt())
-                .build();
-    }
-
-    // * Registrar un ataque
-    public void registerIntrusion(Long vaultItemId, String userEmail, String ipAddress) {
-        User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
-
-        IntrusionLog log = IntrusionLog.builder()
-                .vaultItemId(vaultItemId)
-                .userId(user.getId())
-                .ipAddress(ipAddress)
-                .build();
-
-        intrusionLogRepository.save(log);
-    }
-
-    // * Obtener mis alertas
-    public List<IntrusionLog> getUserIntrusions(String userEmail) {
-        User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
-
-        return intrusionLogRepository.findByUserIdOrderByAttemptedAtDesc(user.getId());
-    }
-
-    // * Actualizar un registro existente (EDITAR)
+    // * ACTUALIZAR UN REGISTRO EXISTENTE (EDITAR)
     public VaultItemResponse updateItem(Long id, VaultItemRequest request, String userEmail) {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
@@ -98,7 +61,6 @@ public class VaultService {
         VaultItem item = vaultItemRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Ítem no encontrado"));
 
-        // Verificamos que el ítem le pertenezca al usuario que lo quiere editar
         if (!item.getUser().getId().equals(user.getId())) {
             throw new RuntimeException("Acceso denegado: Este registro no te pertenece");
         }
@@ -108,11 +70,21 @@ public class VaultService {
         item.setEncryptedPayload(request.getEncryptedPayload());
         item.setHoneytoken(request.isHoneytoken());
 
+        // LÓGICA DE LA TRAMPA AL EDITAR:
+        // Si lo convertimos en Honeytoken y no tenía token, le creamos uno
+        if (request.isHoneytoken() && item.getTrapToken() == null) {
+            item.setTrapToken(UUID.randomUUID().toString());
+        }
+        // Si le quitamos el Honeytoken, le borramos el token de trampa
+        else if (!request.isHoneytoken()) {
+            item.setTrapToken(null);
+        }
+
         VaultItem updatedItem = vaultItemRepository.save(item);
         return mapToResponse(updatedItem);
     }
 
-    // * Eliminar un registro (BORRAR)
+    // * ELIMINAR UN REGISTRO
     public void deleteItem(Long id, String userEmail) {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
@@ -127,17 +99,38 @@ public class VaultService {
         vaultItemRepository.delete(item);
     }
 
-    public VaultItemResponse createItem(VaultItemRequest request, User user) {
-        VaultItem item = VaultItem.builder()
-                .user(user)
-                .encryptedTitle(request.getEncryptedTitle())
-                .encryptedPayload(request.getEncryptedPayload())
-                .itemType(request.getItemType())
-                .isHoneytoken(request.isHoneytoken())
-                .trapToken(request.isHoneytoken() ? java.util.UUID.randomUUID().toString() : null)
+    // * REGISTRAR UN ATAQUE
+    public void registerIntrusion(Long vaultItemId, String userEmail, String ipAddress) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        IntrusionLog log = IntrusionLog.builder()
+                .vaultItemId(vaultItemId)
+                .userId(user.getId())
+                .ipAddress(ipAddress)
                 .build();
 
-        VaultItem savedItem = vaultItemRepository.save(item);
-        return mapToResponse(savedItem);
+        intrusionLogRepository.save(log);
+    }
+
+    // * OBTENER MIS ALERTAS
+    public List<IntrusionLog> getUserIntrusions(String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        return intrusionLogRepository.findByUserIdOrderByAttemptedAtDesc(user.getId());
+    }
+
+    // * MAPPER (Transformar a DTO)
+    private VaultItemResponse mapToResponse(VaultItem item) {
+        return VaultItemResponse.builder()
+                .id(item.getId())
+                .encryptedTitle(item.getEncryptedTitle())
+                .encryptedPayload(item.getEncryptedPayload())
+                .itemType(item.getItemType())
+                .isHoneytoken(item.isHoneytoken())
+                .trapToken(item.getTrapToken()) // Mapeo del token hacia React
+                .createdAt(item.getCreatedAt())
+                .build();
     }
 }
