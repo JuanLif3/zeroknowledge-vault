@@ -134,8 +134,7 @@ public class VaultService {
                 .encryptedPayload(request.getEncryptedPayload())
                 .itemType(request.getItemType())
                 .isHoneytoken(request.isHoneytoken())
-                // AÑADIMOS ESTO: Si es honeytoken, le damos un UUID aleatorio
-                .trapToken(request.isHoneytoken() ? UUID.randomUUID().toString() : null)
+                .trapToken(request.isHoneytoken() ? java.util.UUID.randomUUID().toString() : null)
                 .build();
 
         VaultItem savedItem = vaultItemRepository.save(item);
