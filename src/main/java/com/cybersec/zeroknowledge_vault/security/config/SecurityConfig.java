@@ -34,6 +34,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/auth/**").permitAll() // Login/Registro
                         .requestMatchers("/api/v1/shared-secrets/**").permitAll() // Enlaces efímeros
                         .requestMatchers("/api/v1/trap/**").permitAll()
+                        .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session
