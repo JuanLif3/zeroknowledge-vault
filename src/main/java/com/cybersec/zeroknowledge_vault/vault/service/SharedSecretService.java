@@ -7,6 +7,7 @@ import com.cybersec.zeroknowledge_vault.vault.repository.SharedSecretRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.time.ZoneOffset;
 
 import java.time.LocalDateTime;
 
@@ -20,8 +21,9 @@ public class SharedSecretService {
     public String createSecret(SharedSecretRequest request) {
         SharedSecret secret = SharedSecret.builder()
                 .encryptedMessage(request.getEncryptedMessage())
-                .expiresAt(LocalDateTime.now().plusMinutes(request.getMinutesToLive()))
-                .holdToReveal(request.isHoldToReveal()) // <-- NUEVO: Guardar el modo Snapchat en la BD
+                // USAMOS UTC PARA EVITAR CONFLICTOS CON EL SERVIDOR
+                .expiresAt(LocalDateTime.now(ZoneOffset.UTC).plusMinutes(request.getMinutesToLive()))
+                .holdToReveal(request.isHoldToReveal())
                 .build();
 
         return repository.save(secret).getId();
@@ -33,21 +35,21 @@ public class SharedSecretService {
         SharedSecret secret = repository.findById(id)
                 .orElseThrow(() -> new RuntimeException("El secreto no existe o ya fue destruido"));
 
-        // * Verificar si caducó por tiempo
-        if (secret.getExpiresAt().isBefore(LocalDateTime.now())) {
+        // COMPARAMOS CONTRA UTC
+        if (secret.getExpiresAt().isBefore(LocalDateTime.now(ZoneOffset.UTC))) {
             repository.delete(secret);
+            repository.flush();
             throw new RuntimeException("El link ha caducado");
         }
 
-        // * Preparamos la respuesta
         SharedSecretResponse response = SharedSecretResponse.builder()
                 .id(secret.getId())
                 .encryptedMessage(secret.getEncryptedMessage())
-                .holdToReveal(secret.isHoldToReveal()) // <-- NUEVO: Enviar el modo Snapchat al Frontend
+                .holdToReveal(secret.isHoldToReveal())
                 .build();
 
-        // ! Lo borramos de la DB justo después de leerlo
-        repository.delete(secret);
+        repository.deleteById(id);
+        repository.flush();
 
         return response;
     }
