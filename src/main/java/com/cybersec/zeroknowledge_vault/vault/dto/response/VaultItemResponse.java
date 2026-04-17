@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Data
 @Builder
 @AllArgsConstructor
@@ -15,4 +17,6 @@ public class VaultItemResponse {
     private String itemType;
     private String encryptedPayload;
     private boolean isHoneytoken;
+    private String trapToken;
+    private LocalDateTime createdAt;
 }

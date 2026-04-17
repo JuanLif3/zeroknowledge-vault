@@ -31,6 +31,9 @@ public class VaultItem {
     @Column(nullable = false)
     private boolean isHoneytoken = false;
 
+    @Column(name = "trap_token", unique = true)
+    private String trapToken;
+
     @Column(nullable = false)
     private String itemType;
 

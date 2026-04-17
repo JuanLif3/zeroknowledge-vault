@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -122,5 +123,20 @@ public class VaultService {
         }
 
         vaultItemRepository.delete(item);
+    }
+
+    public VaultItemResponse createItem(VaultItemRequest request, User user) {
+        VaultItem item = VaultItem.builder()
+                .user(user)
+                .encryptedTitle(request.getEncryptedTitle())
+                .encryptedPayload(request.getEncryptedPayload())
+                .itemType(request.getItemType())
+                .isHoneytoken(request.isHoneytoken())
+                // AÑADIMOS ESTO: Si es honeytoken, le damos un UUID aleatorio
+                .trapToken(request.isHoneytoken() ? UUID.randomUUID().toString() : null)
+                .build();
+
+        VaultItem savedItem = vaultItemRepository.save(item);
+        return mapToResponse(savedItem);
     }
 }

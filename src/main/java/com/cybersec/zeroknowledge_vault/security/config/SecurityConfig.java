@@ -31,9 +31,9 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable()) // APAGAR CSRF es vital para que pasen los POST con Cookies
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/v1/auth/**").permitAll()
-                        .requestMatchers("/error").permitAll() // <-- ¡ESTO EVITA EL 403 FANTASMA!
-                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/shared-secrets/**").permitAll() // Permitir a cualquiera LEER el secreto
+                        .requestMatchers("/api/v1/auth/**").permitAll() // Login/Registro
+                        .requestMatchers("/api/v1/shared-secrets/**").permitAll() // Enlaces efímeros
+                        .requestMatchers("/api/v1/trap/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session
