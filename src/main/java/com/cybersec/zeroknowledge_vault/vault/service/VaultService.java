@@ -60,9 +60,11 @@ public class VaultService {
         return VaultItemResponse.builder()
                 .id(item.getId())
                 .encryptedTitle(item.getEncryptedTitle())
+                .encryptedPayload(item.getEncryptedPayload())
                 .itemType(item.getItemType())
-                .encryptedPayload(item.getEncryptedPayload()) 
                 .isHoneytoken(item.isHoneytoken())
+                .trapToken(item.getTrapToken())
+                .createdAt(item.getCreatedAt())
                 .build();
     }
 
