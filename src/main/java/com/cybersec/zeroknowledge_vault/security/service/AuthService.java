@@ -14,6 +14,8 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.SimpleMailMessage;
 
 @Service
 @RequiredArgsConstructor
@@ -24,6 +26,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
     private final TwoFactorService twoFactorService;
+    private final JavaMailSender mailSender;
 
     public AuthResponse register(RegisterRequest request) {
         // * Verificamos si el correo existe (Usando getEmail)
@@ -217,18 +220,22 @@ public class AuthService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
-        // Generamos un código de 6 dígitos
         String otp = String.format("%06d", new java.util.Random().nextInt(999999));
         user.setResetOtp(otp);
-        user.setResetOtpExpiry(LocalDateTime.now().plusMinutes(15)); // Válido por 15 min
+        user.setResetOtpExpiry(LocalDateTime.now().plusMinutes(15));
         userRepository.save(user);
 
-        // SIMULACIÓN DE ENVÍO DE CORREO:
-        // En producción, aquí usarías JavaMailSender o SendGrid
-        System.out.println("\n===============================================");
-        System.out.println("📧 ZK-VAULT: CORREO DE EMERGENCIA ENVIADO");
-        System.out.println("Destinatario: " + email);
-        System.out.println("Código de Recuperación: " + otp);
-        System.out.println("===============================================\n");
+        sendOtpEmail(email, otp);
+    }
+
+    private void sendOtpEmail(String to, String otp) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(to);
+        message.setSubject("Código de Recuperación - ZK-Vault");
+        message.setText("Has solicitado restablecer tu contraseña maestra.\n\n" +
+                "Tu código de verificación es: " + otp + "\n\n" +
+                "Este código expirará en 15 minutos. Si no solicitaste esto, ignora este correo.");
+
+        mailSender.send(message);
     }
 }
