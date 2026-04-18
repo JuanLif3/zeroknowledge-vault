@@ -36,6 +36,12 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private String salt;
 
+    @Column(nullable = false, length = 1000)
+    private String encryptedMasterKey; // La Llave Invisible encriptada con la Contraseña
+
+    @Column(nullable = false, length = 1000)
+    private String recoveryMasterKey; // La misma Llave Invisible encriptada con las 24 palabras
+
     // * --- CAMPOS DE SEGURIDAD ANTI-HACKER ---
     @Column(name = "failed_login_attempts")
     private int failedLoginAttempts = 0;

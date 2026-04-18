@@ -33,6 +33,8 @@ public class AuthService {
         user.setEmail(request.getEmail()); // Usando getEmail
         user.setLoginPasswordHash(passwordEncoder.encode(request.getAuthHash())); // Usando getPassword
         user.setSalt(request.getSalt());
+        user.setEncryptedMasterKey(request.getEncryptedMasterKey());
+        user.setRecoveryMasterKey(request.getRecoveryMasterKey());
 
         // * Guardamos en la DB
         userRepository.save(user);
@@ -112,6 +114,7 @@ public class AuthService {
         return AuthResponse.builder()
                 .token(jwtToken)
                 .requires2FA(false)
+                .encryptedMasterKey(user.getEncryptedMasterKey())
                 .build();
     }
 

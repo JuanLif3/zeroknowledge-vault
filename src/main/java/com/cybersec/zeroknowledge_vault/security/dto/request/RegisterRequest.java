@@ -29,4 +29,10 @@ public class RegisterRequest {
 
         @NotBlank(message = "El Salt criptográfico es obligatorio")
         private String salt;
+
+        @NotBlank(message = "La llave maestra cifrada es obligatoria")
+        private String encryptedMasterKey;
+
+        @NotBlank(message = "La llave de recuperación es obligatoria")
+        private String recoveryMasterKey;
 }
