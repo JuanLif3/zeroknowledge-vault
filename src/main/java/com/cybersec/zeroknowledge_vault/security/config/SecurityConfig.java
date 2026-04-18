@@ -31,10 +31,14 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable()) // APAGAR CSRF es vital para que pasen los POST con Cookies
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/v1/auth/**").permitAll() // Login/Registro
+                        // AHORA SOMOS ESPECÍFICOS: Solo el login y el registro son públicos
+                        .requestMatchers("/api/v1/auth/login", "/api/v1/auth/register").permitAll()
+
                         .requestMatchers("/api/v1/shared-secrets/**").permitAll() // Enlaces efímeros
-                        .requestMatchers("/api/v1/trap/**").permitAll()
-                        .requestMatchers("/error").permitAll()
+                        .requestMatchers("/api/v1/trap/**").permitAll() // Trampa Pública
+                        .requestMatchers("/error").permitAll() // Para poder ver los mensajes de error
+
+                        // * TODO lo demás (incluyendo el 2FA y la Bóveda) requiere estar autenticado
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session

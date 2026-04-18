@@ -8,10 +8,14 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.HttpHeaders;
 import org.springframework.beans.factory.annotation.Value;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -72,5 +76,37 @@ public class AuthController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, cookie.toString())
                 .body("Sesión cerrada exitosamente");
+    }
+
+    // ==========================================
+    // ENDPOINTS DE CONFIGURACIÓN 2FA
+    // ==========================================
+
+    // * Pedir el Código QR (El usuario debe estar logueado en la bóveda)
+    @GetMapping("/2fa/setup")
+    public ResponseEntity<Map<String, String>> setup2FA(Authentication authentication) {
+        // Extraemos quién es el usuario directamente de su Cookie segura
+        String email = authentication.getName();
+        String qrCodeBase64 = authService.setup2FA(email);
+
+        Map<String, String> response = new HashMap<>();
+        response.put("qrCode", qrCodeBase64);
+        return ResponseEntity.ok(response);
+    }
+
+    // * Enviar el primer número de 6 dígitos para activarlo
+    @PostMapping("/2fa/enable")
+    public ResponseEntity<Map<String, String>> enable2FA(
+            @RequestBody Map<String, String> request,
+            Authentication authentication) {
+
+        String email = authentication.getName();
+        String code = request.get("code"); // Obtenemos el número que tecleó en React
+
+        authService.verifyAndEnable2FA(email, code);
+
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "2FA activado con éxito");
+        return ResponseEntity.ok(response);
     }
 }

@@ -61,6 +61,11 @@ public class User implements UserDetails {
         return true;
     }
 
+    private String twoFactorSecret; // La semilla secreta única del usuario
+
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean isTwoFactorEnabled; // Interruptor: true si lo activó, false por defecto
+
     @Override
     public boolean isAccountNonLocked() {
         if (accountLockedUntil == null) {
@@ -79,6 +84,7 @@ public class User implements UserDetails {
     public boolean isEnabled() {
         return true;
     }
+
 
 
 

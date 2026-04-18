@@ -25,9 +25,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     // No interceptar las rutas de Login y Registro
     @Override
-    protected boolean shouldNotFilter(@NonNull HttpServletRequest request) throws ServletException {
+    protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getServletPath();
-        return path.contains("/api/v1/auth/");
+        // El filtro SOLO se apaga (queda ciego) para estas dos rutas exactas.
+        // Para todo lo demás (incluido el 2FA), el filtro debe leer la Cookie.
+        return path.equals("/api/v1/auth/login") || path.equals("/api/v1/auth/register");
     }
 
     @Override
@@ -39,10 +41,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String jwt = null;
 
-        // 1. EXTRAER EL TOKEN DE LA COOKIE BLINDADA
+        // 1. Buscamos la Cookie "jwt"
         if (request.getCookies() != null) {
             for (Cookie cookie : request.getCookies()) {
-                if ("jwt".equals(cookie.getName())) {
+                if (cookie.getName().equals("jwt")) {
                     jwt = cookie.getValue();
                     break;
                 }

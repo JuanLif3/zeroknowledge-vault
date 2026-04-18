@@ -16,11 +16,11 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class AuthService {
 
-    // Aquí declaramos la variable como "userRepository"
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
+    private final TwoFactorService twoFactorService;
 
     public AuthResponse register(RegisterRequest request) {
         // * Verificamos si el correo existe (Usando getEmail)
@@ -90,5 +90,43 @@ public class AuthService {
         return AuthResponse.builder()
                 .token(jwtToken)
                 .build();
+    }
+
+    // ==========================================
+    // MÉTODOS PARA 2FA (Google Authenticator)
+    // ==========================================
+
+    // Iniciar la configuración: Crea el secreto y devuelve la imagen del QR
+    public String setup2FA(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        // Generamos un secreto nuevo y lo guardamos temporalmente (aún NO activamos el 2FA)
+        String secret = twoFactorService.generateNewSecret();
+        user.setTwoFactorSecret(secret);
+        userRepository.save(user);
+
+        // Devolvemos la imagen del código QR lista para mostrar en React
+        return twoFactorService.generateQrCodeImageUri(secret, user.getEmail());
+    }
+
+    // Confirmar y Activar el 2FA definitivamente
+    public void verifyAndEnable2FA(String email, String code) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        if (user.getTwoFactorSecret() == null) {
+            throw new RuntimeException("Debes generar un QR primero");
+        }
+
+        // El motor matemático verifica si el código coincide con la hora actual
+        boolean isValid = twoFactorService.isOtpValid(user.getTwoFactorSecret(), code);
+        if (!isValid) {
+            throw new RuntimeException("Código inválido o expirado. Intenta de nuevo.");
+        }
+
+        // Si el código es correcto, ¡encendemos el interruptor de seguridad!
+        user.setTwoFactorEnabled(true);
+        userRepository.save(user);
     }
 }
