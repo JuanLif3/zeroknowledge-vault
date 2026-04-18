@@ -194,12 +194,41 @@ public class AuthService {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
+        // Verificamos el código
+        if (user.getResetOtp() == null || !user.getResetOtp().equals(request.getOtp())) {
+            throw new RuntimeException("Código OTP incorrecto. Intento de secuestro bloqueado.");
+        }
+        if (user.getResetOtpExpiry() != null && user.getResetOtpExpiry().isBefore(LocalDateTime.now())) {
+            throw new RuntimeException("El código ha expirado. Solicita uno nuevo.");
+        }
+
         user.setLoginPasswordHash(passwordEncoder.encode(request.getNewAuthHash()));
         user.setEncryptedMasterKey(request.getNewEncryptedMasterKey());
-
-        // ¡Opcional pero recomendado! Apagamos el 2FA por si también perdió el celular
         user.setTwoFactorEnabled(false);
 
+        // Limpiamos el código para que no se pueda reusar
+        user.setResetOtp(null);
+        user.setResetOtpExpiry(null);
+
         userRepository.save(user);
+    }
+
+    public void requestPasswordReset(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        // Generamos un código de 6 dígitos
+        String otp = String.format("%06d", new java.util.Random().nextInt(999999));
+        user.setResetOtp(otp);
+        user.setResetOtpExpiry(LocalDateTime.now().plusMinutes(15)); // Válido por 15 min
+        userRepository.save(user);
+
+        // SIMULACIÓN DE ENVÍO DE CORREO:
+        // En producción, aquí usarías JavaMailSender o SendGrid
+        System.out.println("\n===============================================");
+        System.out.println("📧 ZK-VAULT: CORREO DE EMERGENCIA ENVIADO");
+        System.out.println("Destinatario: " + email);
+        System.out.println("Código de Recuperación: " + otp);
+        System.out.println("===============================================\n");
     }
 }

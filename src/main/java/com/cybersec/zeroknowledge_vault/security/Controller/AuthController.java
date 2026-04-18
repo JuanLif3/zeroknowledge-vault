@@ -156,4 +156,12 @@ public class AuthController {
         response.put("message", "Contraseña restablecida con éxito");
         return ResponseEntity.ok(response);
     }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Map<String, String>> forgotPassword(@RequestBody Map<String, String> request) {
+        authService.requestPasswordReset(request.get("email"));
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "Si el correo existe, hemos enviado un código.");
+        return ResponseEntity.ok(response);
+    }
 }

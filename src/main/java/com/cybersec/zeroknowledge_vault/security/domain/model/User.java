@@ -42,6 +42,11 @@ public class User implements UserDetails {
     @Column(nullable = false, length = 1000)
     private String recoveryMasterKey; // La misma Llave Invisible encriptada con las 24 palabras
 
+    @Column(length = 6)
+    private String resetOtp; // El código de 6 dígitos
+
+    private LocalDateTime resetOtpExpiry; // Cuándo expira el código
+
     // * --- CAMPOS DE SEGURIDAD ANTI-HACKER ---
     @Column(name = "failed_login_attempts")
     private int failedLoginAttempts = 0;
