@@ -32,6 +32,7 @@ public class AuthService {
         User user = new User();
         user.setEmail(request.getEmail()); // Usando getEmail
         user.setLoginPasswordHash(passwordEncoder.encode(request.getAuthHash())); // Usando getPassword
+        user.setSalt(request.getSalt());
 
         // * Guardamos en la DB
         userRepository.save(user);
@@ -160,5 +161,14 @@ public class AuthService {
         return userRepository.findByEmail(email)
                 .map(User::isTwoFactorEnabled)
                 .orElse(false);
+    }
+
+    // * MÉTODO PARA ENTREGAR EL SALT (Criptografía)
+    public String getSalt(String email) {
+        return userRepository.findByEmail(email)
+                .map(User::getSalt)
+                // Prevención de enumeración: Si un hacker pregunta por un correo que no existe,
+                // le damos un Salt falso para que no sepa si el correo está registrado o no.
+                .orElse("00000000-0000-0000-0000-000000000000");
     }
 }

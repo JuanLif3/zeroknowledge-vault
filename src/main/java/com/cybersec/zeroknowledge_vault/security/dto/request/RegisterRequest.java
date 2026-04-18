@@ -26,4 +26,7 @@ public class RegisterRequest {
 
         @NotBlank(message = "La contraseña es obligatoria")
         private String authHash;
+
+        @NotBlank(message = "El Salt criptográfico es obligatorio")
+        private String salt;
 }

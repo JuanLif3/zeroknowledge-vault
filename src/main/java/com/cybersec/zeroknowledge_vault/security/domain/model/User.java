@@ -33,9 +33,13 @@ public class User implements UserDetails {
         createdAt = LocalDateTime.now();
     }
 
+    @Column(nullable = false)
+    private String salt;
+
     // * --- CAMPOS DE SEGURIDAD ANTI-HACKER ---
     @Column(name = "failed_login_attempts")
     private int failedLoginAttempts = 0;
+
 
     @Column(name = "account_locked_until")
     private LocalDateTime accountLockedUntil;
@@ -50,6 +54,8 @@ public class User implements UserDetails {
     public String getPassword() {
         return loginPasswordHash;
     }
+
+
 
     @Override
     public String getUsername() {

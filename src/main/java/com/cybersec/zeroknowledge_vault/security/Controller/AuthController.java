@@ -133,4 +133,13 @@ public class AuthController {
         response.put("isEnabled", isEnabled);
         return ResponseEntity.ok(response);
     }
+
+    // * Ruta para que React pida el Salt antes de hacer Login
+    @GetMapping("/salt/{email}")
+    public ResponseEntity<Map<String, String>> getSalt(@PathVariable String email) {
+        String salt = authService.getSalt(email);
+        Map<String, String> response = new HashMap<>();
+        response.put("salt", salt);
+        return ResponseEntity.ok(response);
+    }
 }

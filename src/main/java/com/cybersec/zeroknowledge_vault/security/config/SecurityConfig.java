@@ -33,7 +33,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // AHORA SOMOS ESPECÍFICOS: Solo el login y el registro son públicos
                         .requestMatchers("/api/v1/auth/login", "/api/v1/auth/register").permitAll()
-
+                        .requestMatchers("/api/v1/auth/login", "/api/v1/auth/register", "/api/v1/auth/salt/**").permitAll()
                         .requestMatchers("/api/v1/shared-secrets/**").permitAll() // Enlaces efímeros
                         .requestMatchers("/api/v1/trap/**").permitAll() // Trampa Pública
                         .requestMatchers("/error").permitAll() // Para poder ver los mensajes de error
