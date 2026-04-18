@@ -4,6 +4,7 @@ import com.cybersec.zeroknowledge_vault.security.dto.request.LoginRequest;
 import com.cybersec.zeroknowledge_vault.security.dto.request.RegisterRequest;
 import com.cybersec.zeroknowledge_vault.security.dto.response.AuthResponse;
 import com.cybersec.zeroknowledge_vault.security.service.AuthService;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -40,13 +41,25 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(
-            @RequestBody LoginRequest request,
+            @Valid @RequestBody LoginRequest request,
             HttpServletResponse response
     ) {
+        // Ejecutamos la lógica de login (Que ahora incluye la parada del 2FA)
         AuthResponse authResponse = authService.login(request);
-        injectJwtCookie(response, authResponse.getToken());
 
-        return ResponseEntity.ok(AuthResponse.builder().token("JWT protegido en Cookie HttpOnly").build());
+        // SOLO creamos la Cookie si la aduana del 2FA nos entregó un Token válido
+        if (authResponse.getToken() != null && !authResponse.getToken().isEmpty()) {
+            Cookie cookie = new Cookie("jwt", authResponse.getToken());
+            cookie.setHttpOnly(true);
+            cookie.setPath("/");
+            cookie.setMaxAge(24 * 60 * 60); // 1 día
+            // cookie.setSecure(true); // Descomentar en producción (HTTPS)
+
+            response.addCookie(cookie);
+        }
+
+        // Devolvemos la respuesta a React (React leerá el requires2FA)
+        return ResponseEntity.ok(authResponse);
     }
 
     // * Método privado CORREGIDO para generar la cookie blindada

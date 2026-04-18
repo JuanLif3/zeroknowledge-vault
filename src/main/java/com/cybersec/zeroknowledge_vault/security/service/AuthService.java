@@ -46,17 +46,17 @@ public class AuthService {
     }
 
     public AuthResponse login(LoginRequest request) {
-        //  Buscamos al usuario (Usando userRepository y getEmail)
+        // Buscamos al usuario (Usando userRepository y getEmail)
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("Credenciales incorrectas"));
 
-        //  VERIFICACIÓN DE BLOQUEO (Anti-Brute Force)
+        // VERIFICACIÓN DE BLOQUEO (Anti-Brute Force)
         if (!user.isAccountNonLocked()) {
             throw new RuntimeException("Cuenta bloqueada por múltiples intentos fallidos. Por seguridad, intente nuevamente en 15 minutos.");
         }
 
         try {
-            // Intentamos autenticar con Spring Security
+            // Intentamos autenticar con Spring Security (Verifica el Hash)
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
                             request.getEmail(),
@@ -64,10 +64,10 @@ public class AuthService {
                     )
             );
 
-            // SI LLEGA AQUÍ, EL LOGIN FUE EXITOSO: Reseteamos los fallos a 0
+            // SI LLEGA AQUÍ, LA CLAVE ES CORRECTA: Reseteamos los fallos a 0
             user.setFailedLoginAttempts(0);
             user.setAccountLockedUntil(null);
-            userRepository.save(user); // Usando userRepository
+            userRepository.save(user);
 
         } catch (Exception e) {
             // SI LLEGA AQUÍ, SE EQUIVOCÓ DE CONTRASEÑA: Sumamos un fallo
@@ -77,18 +77,40 @@ public class AuthService {
             if (attempts >= 5) {
                 // ¡PUM! Bloqueado por 15 minutos
                 user.setAccountLockedUntil(LocalDateTime.now().plusMinutes(15));
-                userRepository.save(user); // Usando userRepository
+                userRepository.save(user);
                 throw new RuntimeException("Has superado el límite de intentos (5). Cuenta bloqueada temporalmente por 15 minutos.");
             }
 
-            userRepository.save(user); // Usando userRepository
+            userRepository.save(user);
             throw new RuntimeException("Credenciales incorrectas. Te quedan " + (5 - attempts) + " intentos antes del bloqueo de seguridad.");
         }
 
-        // * Generamos el token solo si todo fue perfecto
-        var jwtToken = jwtService.generateToken(user);
+        // ==========================================
+        // ADUANA DE 2FA (NUEVO)
+        // ==========================================
+        if (user.isTwoFactorEnabled()) {
+            // Si el frontend no envió el código de 6 dígitos, le decimos: "Espera, falta el 2FA"
+            if (request.getTwoFactorCode() == null || request.getTwoFactorCode().isEmpty()) {
+                return AuthResponse.builder()
+                        .token(null) // No le damos el token todavía
+                        .requires2FA(true) // Le avisamos a React que levante la pantalla del código
+                        .build();
+            } else {
+                // Si el frontend sí envió el código, la librería matemática lo valida
+                boolean isCodeValid = twoFactorService.isOtpValid(user.getTwoFactorSecret(), request.getTwoFactorCode());
+                if (!isCodeValid) {
+                    throw new RuntimeException("Código 2FA inválido o expirado");
+                }
+            }
+        }
+        // ==========================================
+
+        // * Generamos el token solo si todo fue perfecto (Clave correcta + 2FA correcto o apagado)
+        String jwtToken = jwtService.generateToken(user);
+
         return AuthResponse.builder()
                 .token(jwtToken)
+                .requires2FA(false)
                 .build();
     }
 
