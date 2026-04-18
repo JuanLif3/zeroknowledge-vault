@@ -122,4 +122,15 @@ public class AuthController {
         response.put("message", "2FA activado con éxito");
         return ResponseEntity.ok(response);
     }
+
+    // * Consultar estado de 2FA
+    @GetMapping("/2fa/status")
+    public ResponseEntity<Map<String, Boolean>> check2FAStatus(Authentication authentication) {
+        String email = authentication.getName();
+        boolean isEnabled = authService.is2FAEnabled(email);
+
+        Map<String, Boolean> response = new HashMap<>();
+        response.put("isEnabled", isEnabled);
+        return ResponseEntity.ok(response);
+    }
 }

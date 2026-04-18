@@ -123,6 +123,10 @@ public class AuthService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
+        if (user.isTwoFactorEnabled()) {
+            throw new RuntimeException("El 2FA ya está configurado y activo en esta cuenta.");
+        }
+
         // Generamos un secreto nuevo y lo guardamos temporalmente (aún NO activamos el 2FA)
         String secret = twoFactorService.generateNewSecret();
         user.setTwoFactorSecret(secret);
@@ -150,5 +154,11 @@ public class AuthService {
         // Si el código es correcto, ¡encendemos el interruptor de seguridad!
         user.setTwoFactorEnabled(true);
         userRepository.save(user);
+    }
+
+    public boolean is2FAEnabled(String email) {
+        return userRepository.findByEmail(email)
+                .map(User::isTwoFactorEnabled)
+                .orElse(false);
     }
 }
