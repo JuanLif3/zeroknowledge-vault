@@ -2,6 +2,7 @@ package com.cybersec.zeroknowledge_vault.security.Controller;
 
 import com.cybersec.zeroknowledge_vault.security.dto.request.LoginRequest;
 import com.cybersec.zeroknowledge_vault.security.dto.request.RegisterRequest;
+import com.cybersec.zeroknowledge_vault.security.dto.request.ResetPasswordRequest;
 import com.cybersec.zeroknowledge_vault.security.dto.response.AuthResponse;
 import com.cybersec.zeroknowledge_vault.security.service.AuthService;
 import jakarta.servlet.http.Cookie;
@@ -140,6 +141,19 @@ public class AuthController {
         String salt = authService.getSalt(email);
         Map<String, String> response = new HashMap<>();
         response.put("salt", salt);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/recovery-data/{email}")
+    public ResponseEntity<Map<String, String>> getRecoveryData(@PathVariable String email) {
+        return ResponseEntity.ok(authService.getRecoveryData(email));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<Map<String, String>> resetPassword(@RequestBody ResetPasswordRequest request) {
+        authService.resetPassword(request);
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "Contraseña restablecida con éxito");
         return ResponseEntity.ok(response);
     }
 }

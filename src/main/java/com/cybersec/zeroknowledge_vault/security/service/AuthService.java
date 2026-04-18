@@ -3,6 +3,7 @@ package com.cybersec.zeroknowledge_vault.security.service;
 import com.cybersec.zeroknowledge_vault.security.domain.model.User;
 import com.cybersec.zeroknowledge_vault.security.dto.request.LoginRequest;
 import com.cybersec.zeroknowledge_vault.security.dto.request.RegisterRequest;
+import com.cybersec.zeroknowledge_vault.security.dto.request.ResetPasswordRequest;
 import com.cybersec.zeroknowledge_vault.security.dto.response.AuthResponse;
 import com.cybersec.zeroknowledge_vault.security.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -11,6 +12,8 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -173,5 +176,30 @@ public class AuthService {
                 // Prevención de enumeración: Si un hacker pregunta por un correo que no existe,
                 // le damos un Salt falso para que no sepa si el correo está registrado o no.
                 .orElse("00000000-0000-0000-0000-000000000000");
+    }
+
+    // * Entregar la caja fuerte de emergencia
+    public Map<String, String> getRecoveryData(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        Map<String, String> data = new HashMap<>();
+        data.put("salt", user.getSalt());
+        data.put("recoveryMasterKey", user.getRecoveryMasterKey());
+        return data;
+    }
+
+    // * Guardar la nueva contraseña
+    public void resetPassword(ResetPasswordRequest request) {
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        user.setLoginPasswordHash(passwordEncoder.encode(request.getNewAuthHash()));
+        user.setEncryptedMasterKey(request.getNewEncryptedMasterKey());
+
+        // ¡Opcional pero recomendado! Apagamos el 2FA por si también perdió el celular
+        user.setTwoFactorEnabled(false);
+
+        userRepository.save(user);
     }
 }
