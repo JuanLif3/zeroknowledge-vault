@@ -16,7 +16,6 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/vault")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class VaultController {
 
     private final VaultService vaultService;

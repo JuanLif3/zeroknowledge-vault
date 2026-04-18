@@ -25,7 +25,5 @@ public class RegisterRequest {
         private String email;
 
         @NotBlank(message = "La contraseña es obligatoria")
-        @Pattern(regexp = "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=!*~_]).{12,}$",
-                message = "La contraseña debe tener al menos 12 caracteres, una mayúscula, una minúscula, un número y un carácter especial.")
         private String authHash;
 }

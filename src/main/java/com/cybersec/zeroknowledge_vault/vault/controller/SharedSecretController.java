@@ -10,7 +10,6 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/v1/shared-secrets")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*") // Permitimos que cualquiera acceda
 public class SharedSecretController {
 
     private final SharedSecretService secretService;
