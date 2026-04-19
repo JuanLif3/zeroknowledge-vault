@@ -5,6 +5,7 @@ import com.cybersec.zeroknowledge_vault.security.dto.request.RegisterRequest;
 import com.cybersec.zeroknowledge_vault.security.dto.request.ResetPasswordRequest;
 import com.cybersec.zeroknowledge_vault.security.dto.response.AuthResponse;
 import com.cybersec.zeroknowledge_vault.security.service.AuthService;
+import com.cybersec.zeroknowledge_vault.security.service.JwtService;
 import com.cybersec.zeroknowledge_vault.security.service.RateLimitingService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -29,6 +30,7 @@ public class AuthController {
 
     private final AuthService authService;
     private final RateLimitingService rateLimitingService;
+    private final JwtService jwtService;
 
     @Value("${app.security.cookie.secure:false}")
     private boolean isCookieSecure;
@@ -98,18 +100,25 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<?> logout() {
+    public ResponseEntity<?> logout(@CookieValue(name = "jwt", required = false) String jwt) {
+
+        // Si el usuario nos manda un token al cerrar sesión, lo quemamos
+        if (jwt != null && !jwt.isEmpty()) {
+            // Nota: Podrías necesitar inyectar JwtService en AuthController para llamar a este método
+            jwtService.blacklistToken(jwt);
+        }
+
         ResponseCookie cookie = ResponseCookie.from("jwt", "")
                 .httpOnly(true)
                 .secure(isCookieSecure)
                 .path("/")
-                .maxAge(0) // <-- Autodestrucción instantánea
+                .maxAge(0) // Autodestrucción de cookie en el navegador
                 .sameSite("Strict")
                 .build();
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, cookie.toString())
-                .body("Sesión cerrada exitosamente");
+                .body("Sesión cerrada y token invalidado exitosamente");
     }
 
     // ==========================================
