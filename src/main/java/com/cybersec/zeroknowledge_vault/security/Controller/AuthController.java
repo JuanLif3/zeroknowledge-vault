@@ -5,16 +5,19 @@ import com.cybersec.zeroknowledge_vault.security.dto.request.RegisterRequest;
 import com.cybersec.zeroknowledge_vault.security.dto.request.ResetPasswordRequest;
 import com.cybersec.zeroknowledge_vault.security.dto.response.AuthResponse;
 import com.cybersec.zeroknowledge_vault.security.service.AuthService;
+import com.cybersec.zeroknowledge_vault.security.service.RateLimitingService;
 import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.http.ResponseCookie;
-import org.springframework.http.HttpHeaders;
-import org.springframework.beans.factory.annotation.Value;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -25,15 +28,24 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthService authService;
+    private final RateLimitingService rateLimitingService;
 
     @Value("${app.security.cookie.secure:false}")
     private boolean isCookieSecure;
 
     @PostMapping("/register")
-    public ResponseEntity<AuthResponse> register(
+    public ResponseEntity<?> register(
             @Valid @RequestBody RegisterRequest request,
-            HttpServletResponse response // Necesario para inyectar la cookie
+            HttpServletResponse response,
+            HttpServletRequest httpRequest // <- Obtenemos la IP
     ) {
+        // 🛡️ ADUANA DE RATE LIMITING: Máximo 3 registros por hora por IP
+        String ip = httpRequest.getRemoteAddr();
+        if (!rateLimitingService.resolveCriticalBucket(ip).tryConsume(1)) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(Map.of("error", "Límite de creación de cuentas alcanzado. Intenta en 1 hora."));
+        }
+
         AuthResponse authResponse = authService.register(request);
         injectJwtCookie(response, authResponse.getToken());
 
@@ -41,10 +53,18 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(
+    public ResponseEntity<?> login(
             @Valid @RequestBody LoginRequest request,
-            HttpServletResponse response
+            HttpServletResponse response,
+            HttpServletRequest httpRequest // <- Obtenemos la IP
     ) {
+        // 🛡️ ADUANA DE RATE LIMITING: Máximo 10 intentos de login por minuto por IP
+        String ip = httpRequest.getRemoteAddr();
+        if (!rateLimitingService.resolveLoginBucket(ip).tryConsume(1)) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(Map.of("error", "Demasiadas peticiones de acceso. Intenta en 1 minuto."));
+        }
+
         // Ejecutamos la lógica de login (Que ahora incluye la parada del 2FA)
         AuthResponse authResponse = authService.login(request);
 
@@ -65,9 +85,9 @@ public class AuthController {
 
     // * Método privado CORREGIDO para generar la cookie blindada
     private void injectJwtCookie(HttpServletResponse response, String token) {
-        ResponseCookie cookie = ResponseCookie.from("jwt", token) // Usamos la variable 'token' que llega por parámetro
+        ResponseCookie cookie = ResponseCookie.from("jwt", token)
                 .httpOnly(true)
-                .secure(isCookieSecure) // Usa la variable de entorno
+                .secure(isCookieSecure)
                 .path("/")
                 .maxAge(24 * 60 * 60) // 1 día
                 .sameSite("Strict") // <-- EL ESCUDO ANTI-CSRF
@@ -96,10 +116,8 @@ public class AuthController {
     // ENDPOINTS DE CONFIGURACIÓN 2FA
     // ==========================================
 
-    // * Pedir el Código QR (El usuario debe estar logueado en la bóveda)
     @GetMapping("/2fa/setup")
     public ResponseEntity<Map<String, String>> setup2FA(Authentication authentication) {
-        // Extraemos quién es el usuario directamente de su Cookie segura
         String email = authentication.getName();
         String qrCodeBase64 = authService.setup2FA(email);
 
@@ -108,14 +126,13 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
-    // * Enviar el primer número de 6 dígitos para activarlo
     @PostMapping("/2fa/enable")
     public ResponseEntity<Map<String, String>> enable2FA(
             @RequestBody Map<String, String> request,
             Authentication authentication) {
 
         String email = authentication.getName();
-        String code = request.get("code"); // Obtenemos el número que tecleó en React
+        String code = request.get("code");
 
         authService.verifyAndEnable2FA(email, code);
 
@@ -124,7 +141,6 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
-    // * Consultar estado de 2FA
     @GetMapping("/2fa/status")
     public ResponseEntity<Map<String, Boolean>> check2FAStatus(Authentication authentication) {
         String email = authentication.getName();
@@ -135,7 +151,6 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
-    // * Ruta para que React pida el Salt antes de hacer Login
     @GetMapping("/salt/{email}")
     public ResponseEntity<Map<String, String>> getSalt(@PathVariable String email) {
         String salt = authService.getSalt(email);
@@ -158,8 +173,19 @@ public class AuthController {
     }
 
     @PostMapping("/forgot-password")
-    public ResponseEntity<Map<String, String>> forgotPassword(@RequestBody Map<String, String> request) {
+    public ResponseEntity<?> forgotPassword(
+            @RequestBody Map<String, String> request,
+            HttpServletRequest httpRequest // <- Obtenemos la IP
+    ) {
+        // ADUANA DE RATE LIMITING: Máximo 3 correos por hora por IP
+        String ip = httpRequest.getRemoteAddr();
+        if (!rateLimitingService.resolveCriticalBucket(ip).tryConsume(1)) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(Map.of("error", "Límite de correos superado. Intenta más tarde."));
+        }
+
         authService.requestPasswordReset(request.get("email"));
+
         Map<String, String> response = new HashMap<>();
         response.put("message", "Si el correo existe, hemos enviado un código.");
         return ResponseEntity.ok(response);
