@@ -16,6 +16,8 @@ import java.util.HashMap;
 import java.util.Map;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.SimpleMailMessage;
+import java.security.SecureRandom;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -55,7 +57,7 @@ public class AuthService {
     }
 
     public AuthResponse login(LoginRequest request) {
-        // Buscamos al usuario (Usando userRepository y getEmail)
+        // Buscamos al usuario
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("Credenciales incorrectas"));
 
@@ -73,30 +75,31 @@ public class AuthService {
                     )
             );
 
-            // SI LLEGA AQUÍ, LA CLAVE ES CORRECTA: Reseteamos los fallos a 0
-            user.setFailedLoginAttempts(0);
-            user.setAccountLockedUntil(null);
-            userRepository.save(user);
+            // SI LLEGA AQUÍ, LA CLAVE ES CORRECTA
+            // Delegamos el reinicio de fallos directamente a la BD de forma segura
+            userRepository.resetFailedLogins(request.getEmail());
 
         } catch (Exception e) {
-            // SI LLEGA AQUÍ, SE EQUIVOCÓ DE CONTRASEÑA: Sumamos un fallo
-            int attempts = user.getFailedLoginAttempts() + 1;
-            user.setFailedLoginAttempts(attempts);
+            // SI LLEGA AQUÍ, SE EQUIVOCÓ DE CONTRASEÑA
 
-            if (attempts >= 5) {
+            // 1. Sumamos el fallo directamente en SQL para evitar Condición de Carrera
+            userRepository.incrementFailedLogins(request.getEmail());
+
+            // 2. Volvemos a leer al usuario para ver en qué número quedó exactamente
+            User updatedUser = userRepository.findByEmail(request.getEmail()).get();
+            int currentAttempts = updatedUser.getFailedLoginAttempts();
+
+            if (currentAttempts >= 5) {
                 // ¡PUM! Bloqueado por 15 minutos
-                user.setAccountLockedUntil(LocalDateTime.now().plusMinutes(15));
-                userRepository.save(user);
+                updatedUser.setAccountLockedUntil(LocalDateTime.now().plusMinutes(15));
+                userRepository.save(updatedUser);
                 throw new RuntimeException("Has superado el límite de intentos (5). Cuenta bloqueada temporalmente por 15 minutos.");
             }
 
-            userRepository.save(user);
-            throw new RuntimeException("Credenciales incorrectas. Te quedan " + (5 - attempts) + " intentos antes del bloqueo de seguridad.");
+            throw new RuntimeException("Credenciales incorrectas. Te quedan " + (5 - currentAttempts) + " intentos antes del bloqueo de seguridad.");
         }
 
-        // ==========================================
-        // ADUANA DE 2FA (NUEVO)
-        // ==========================================
+        // ADUANA DE 2FA
         if (user.isTwoFactorEnabled()) {
             // Si el frontend no envió el código de 6 dígitos, le decimos: "Espera, falta el 2FA"
             if (request.getTwoFactorCode() == null || request.getTwoFactorCode().isEmpty()) {
@@ -217,15 +220,31 @@ public class AuthService {
     }
 
     public void requestPasswordReset(String email) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+        Optional<User> userOpt = userRepository.findByEmail(email);
 
-        String otp = String.format("%06d", new java.util.Random().nextInt(999999));
-        user.setResetOtp(otp);
-        user.setResetOtpExpiry(LocalDateTime.now().plusMinutes(15));
-        userRepository.save(user);
+        // Si el correo no existe, nos detenemos en silencio sin lanzar error.
+        // Para el atacante (y el frontend), parecerá que el correo se envió con éxito.
+        if (userOpt.isEmpty()) {
+            return;
+        }
 
-        sendOtpEmail(email, otp);
+        User user = userOpt.get();
+
+        try {
+            // CRIPTOGRAFÍA FUERTE (SecureRandom):
+            // Genera números utilizando la entropía del sistema operativo (impredecible)
+            SecureRandom secureRandom = SecureRandom.getInstanceStrong();
+            String otp = String.format("%06d", secureRandom.nextInt(999999));
+
+            user.setResetOtp(otp);
+            user.setResetOtpExpiry(LocalDateTime.now().plusMinutes(15));
+            userRepository.save(user);
+
+            sendOtpEmail(email, otp);
+
+        } catch (Exception e) {
+            throw new RuntimeException("Error interno al generar código de seguridad");
+        }
     }
 
     private void sendOtpEmail(String to, String otp) {
