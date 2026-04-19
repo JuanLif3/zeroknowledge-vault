@@ -35,6 +35,9 @@ public class AuthController {
     @Value("${app.security.cookie.secure:false}")
     private boolean isCookieSecure;
 
+    @Value("${app.security.cookie.same-site:Strict}")
+    private String cookieSameSite;
+
     @PostMapping("/register")
     public ResponseEntity<?> register(
             @Valid @RequestBody RegisterRequest request,
@@ -89,22 +92,18 @@ public class AuthController {
     private void injectJwtCookie(HttpServletResponse response, String token) {
         ResponseCookie cookie = ResponseCookie.from("jwt", token)
                 .httpOnly(true)
-                .secure(isCookieSecure)
+                .secure(isCookieSecure) // En prod será true
                 .path("/")
-                .maxAge(24 * 60 * 60) // 1 día
-                .sameSite("Strict") // <-- EL ESCUDO ANTI-CSRF
+                .maxAge(24 * 60 * 60)
+                .sameSite(cookieSameSite) // En prod DEBE ser "None"
                 .build();
 
-        // Inyectamos la cabecera directamente en el response
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 
     @PostMapping("/logout")
     public ResponseEntity<?> logout(@CookieValue(name = "jwt", required = false) String jwt) {
-
-        // Si el usuario nos manda un token al cerrar sesión, lo quemamos
         if (jwt != null && !jwt.isEmpty()) {
-            // Nota: Podrías necesitar inyectar JwtService en AuthController para llamar a este método
             jwtService.blacklistToken(jwt);
         }
 
@@ -112,8 +111,8 @@ public class AuthController {
                 .httpOnly(true)
                 .secure(isCookieSecure)
                 .path("/")
-                .maxAge(0) // Autodestrucción de cookie en el navegador
-                .sameSite("Strict")
+                .maxAge(0)
+                .sameSite(cookieSameSite)
                 .build();
 
         return ResponseEntity.ok()
