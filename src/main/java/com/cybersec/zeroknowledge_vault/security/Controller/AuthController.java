@@ -42,7 +42,7 @@ public class AuthController {
             HttpServletRequest httpRequest // <- Obtenemos la IP
     ) {
         // 🛡️ ADUANA DE RATE LIMITING: Máximo 3 registros por hora por IP
-        String ip = httpRequest.getRemoteAddr();
+        String ip = getClientIp(httpRequest);
         if (!rateLimitingService.resolveCriticalBucket(ip).tryConsume(1)) {
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                     .body(Map.of("error", "Límite de creación de cuentas alcanzado. Intenta en 1 hora."));
@@ -60,8 +60,8 @@ public class AuthController {
             HttpServletResponse response,
             HttpServletRequest httpRequest // <- Obtenemos la IP
     ) {
-        // 🛡️ ADUANA DE RATE LIMITING: Máximo 10 intentos de login por minuto por IP
-        String ip = httpRequest.getRemoteAddr();
+        // ADUANA DE RATE LIMITING: Máximo 10 intentos de login por minuto por IP
+        String ip = getClientIp(httpRequest);
         if (!rateLimitingService.resolveLoginBucket(ip).tryConsume(1)) {
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                     .body(Map.of("error", "Demasiadas peticiones de acceso. Intenta en 1 minuto."));
@@ -187,7 +187,7 @@ public class AuthController {
             HttpServletRequest httpRequest // <- Obtenemos la IP
     ) {
         // ADUANA DE RATE LIMITING: Máximo 3 correos por hora por IP
-        String ip = httpRequest.getRemoteAddr();
+        String ip = getClientIp(httpRequest);
         if (!rateLimitingService.resolveCriticalBucket(ip).tryConsume(1)) {
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                     .body(Map.of("error", "Límite de correos superado. Intenta más tarde."));
@@ -198,5 +198,17 @@ public class AuthController {
         Map<String, String> response = new HashMap<>();
         response.put("message", "Si el correo existe, hemos enviado un código.");
         return ResponseEntity.ok(response);
+    }
+
+    // * Método para extraer la verdadera IP del usuario, incluso si estamos detrás de un Proxy de AWS/Render
+    private String getClientIp(HttpServletRequest request) {
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getRemoteAddr();
+        } else {
+            // "X-Forwarded-For" puede devolver una lista de IPs separadas por coma. La primera es la del cliente original.
+            ip = ip.split(",")[0].trim();
+        }
+        return ip;
     }
 }
